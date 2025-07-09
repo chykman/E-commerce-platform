@@ -2,3 +2,5 @@ node_modules/
 server/
 terraform/
 deployment/
+/dockerfile
+/docker-compose.yml
