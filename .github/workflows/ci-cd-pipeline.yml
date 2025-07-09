@@ -9,19 +9,34 @@ on:
       - main
 
 jobs:
-  build:
+  build-and-test:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Set up node.js
+      - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '16'
 
-      - name: Install dependencies
+      # Install backend dependencies
+      - name: Install backend dependencies
+        working-directory: ./server
         run: npm install
 
-      - name: Run tests
+      # Run backend tests
+      - name: Run backend tests
+        working-directory: ./server
         run: npm test
+
+      # Install frontend dependencies
+      - name: Install frontend dependencies
+        working-directory: ./public
+        run: npm install
+
+      # Build frontend React app
+      - name: Build frontend
+        working-directory: ./public
+        run: npm run build
