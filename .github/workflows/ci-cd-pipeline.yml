@@ -58,12 +58,12 @@ jobs:
           context: .
           file: ./server/Dockerfile
           push: true
-          tags: your-dockerhub-${{ secrets.DOCKER_USERNAME }}/ecommerce-app-backend:latest
-      
+          tags: chykmanish/ecommerce-app-backend:latest
 
-      - name: Build and push frontend Docker image
+      - name: Build and push Frontend image
         uses: docker/build-push-action@v4
         with:
           context: ./public
+          file: ./public/Dockerfile
           push: true
-          tags: your-dockerhub-${{ secrets.DOCKER_USERNAME }}/ecommerce-app-frontend:latest
+          tags: chykmanish/ecommerce-app-frontend:latest
