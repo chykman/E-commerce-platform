@@ -4,7 +4,8 @@
   "main": "server/server.js",
   "scripts": {
     "start": "node server/server.js",
-    "test": "jest"
+    "test": "jest",
+    "build": "echo 'No build needed'"
   },
   "dependencies": {
     "express": "^4.17.1",
