@@ -2,16 +2,11 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
+    branches: [main]
 
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
@@ -21,32 +16,26 @@ jobs:
         with:
           node-version: '16'
 
-      # Install backend dependencies
+      # Backend
       - name: Install backend dependencies
         working-directory: ./server
         run: npm install
 
-      # Run backend tests
       - name: Run backend tests
         working-directory: ./server
         run: npm test
 
-      # Install frontend dependencies
+      # Frontend
       - name: Install frontend dependencies
         working-directory: ./public
         run: npm install
 
-      # Build frontend React app
       - name: Build frontend
         working-directory: ./public
         run: npm run build
 
-
-        
-  
-      # Build and Push Docker Images
-
-      - name : Set up Docker Buildx
+      # Docker
+      - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
 
       - name: Log in to Docker Hub
@@ -71,57 +60,58 @@ jobs:
           push: true
           tags: chykmanish/ecommerce-app-frontend:latest
 
-
-     
-
   deploy-to-ec2:
     needs: build-and-test
     runs-on: ubuntu-latest
     steps:
+      # SSH Key Setup (Critical Fix)
+      - name: Setup SSH Key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/ec2_key
+          chmod 600 ~/.ssh/ec2_key
+          ssh-keyscan ${{ secrets.EC2_IP_ADDRESS }} >> ~/.ssh/known_hosts
+
+      # Docker Installation
       - name: Install Docker on EC2
         uses: appleboy/ssh-action@v0.1.10
+        env:
+          SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
         with:
           host: ${{ secrets.EC2_IP_ADDRESS }}
-          username: ubuntu  # Use consistent username
-          key: ${{ secrets.EC2_SSH_KEY }}
+          username: ubuntu
+          key: ${{ env.SSH_KEY }}
           script: |
-            # Install Docker (skip if already installed)
+            set -e  # Exit on error
+            echo "=== Setting up Docker ==="
             if ! command -v docker &> /dev/null; then
-              sudo apt-get update
+              sudo apt-get update -qq
               sudo apt-get install -y docker.io
-              sudo systemctl start docker
-              sudo systemctl enable docker
+              sudo systemctl enable --now docker
             fi
             
-            # Install Docker Compose
             if ! command -v docker-compose &> /dev/null; then
-              sudo curl -L "https://github.com/docker/compose/releases/download/v2.20.3/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+              sudo curl -fsSL "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
               sudo chmod +x /usr/local/bin/docker-compose
             fi
             
-            # Add user to docker group
             sudo usermod -aG docker ubuntu
-            # No need for newgrp - will take effect on next login
+            docker --version
+            docker-compose --version
 
-
-
-      - name: Copy Docker-Compose to EC2
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.EC2_IP_ADDRESS }}
-          username: ubuntu  # Consistent username
-          key: ${{ secrets.EC2_SSH_KEY }}
-          source: "docker-compose.yml"
-          target: "/home/ubuntu/"
-
-      - name: Deploy Containers
+      # Deployment
+      - name: Deploy Application
         uses: appleboy/ssh-action@v0.1.10
         with:
           host: ${{ secrets.EC2_IP_ADDRESS }}
-          username: ubuntu  # Consistent username
+          username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            # Clean up old containers
+            set -e
+            echo "=== Deploying Application ==="
+            cd /home/ubuntu
+            
+            # Stop and clean up old containers
             docker-compose down || true
             
             # Pull latest images
@@ -130,16 +120,30 @@ jobs:
             
             # Start new containers
             docker-compose up -d
-
-            # Check if containers are running
+            
+            # Verify deployment
+            echo "=== Running Containers ==="
             docker ps
+            echo "=== Deployment Complete ==="
 
-      - name: Notify Deployment Success to whatsapp
-        uses: appleboy/ssh-action@v0.1.10
+      # Notification (Improved)
+      - name: Notify Deployment Status
+        if: always()
+        uses: actions/github-script@v6
         with:
-          host: ${{ secrets.EC2_IP_ADDRESS }}
-          username: ubuntu  # Consistent username
-          key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            # Send WhatsApp notification using curl
-            curl -X POST "https://api.callmebot.com/whatsapp.php?phone=${{ secrets.WHATSAPP_PHONE }}&text=Deployment%20successful!%20Your%20eCommerce%20app%20is%20now%20live.%20Visit%20it%20at%20http://your-ec2-ip-address" -H "Content-Type: application/json"
+            const success = !process.env.FAILURE
+            const message = success 
+              ? '✅ Deployment successful! Visit: http://${{ secrets.EC2_IP_ADDRESS }}' 
+              : '❌ Deployment failed. Check GitHub Actions logs.'
+            
+            // Send to WhatsApp
+            await fetch(`https://api.callmebot.com/whatsapp.php?phone=${{ secrets.WHATSAPP_PHONE }}&text=${encodeURIComponent(message)}`)
+            
+            // Add GitHub comment
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: message
+            })
