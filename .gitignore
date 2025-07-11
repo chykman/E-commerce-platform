@@ -1,5 +1,0 @@
-node_modules/
-terraform/
-deployment/
-# Ignore node_modules directory
-#docker-compose.yml
