@@ -60,17 +60,22 @@ jobs:
           push: true
           tags: chykmanish/ecommerce-app-frontend:latest
 
+
+
+
   deploy-to-ec2:
     needs: build-and-test
     runs-on: ubuntu-latest
     steps:
-      # SSH Key Setup (Critical Fix)
+      # SSH Setup
       - name: Setup SSH Key
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/ec2_key
           chmod 600 ~/.ssh/ec2_key
           ssh-keyscan ${{ secrets.EC2_IP_ADDRESS }} >> ~/.ssh/known_hosts
+
+          
 
       # Docker Installation
       - name: Install Docker on EC2
@@ -80,9 +85,9 @@ jobs:
         with:
           host: ${{ secrets.EC2_IP_ADDRESS }}
           username: ubuntu
-          key: ${{ env.SSH_KEY }}
+          key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            set -e  # Exit on error
+            set -e
             echo "=== Setting up Docker ==="
             if ! command -v docker &> /dev/null; then
               sudo apt-get update -qq
@@ -99,41 +104,65 @@ jobs:
             docker --version
             docker-compose --version
 
-      # Deployment
-      - name: Deploy Application
+      # File Transfer (Critical Fix)
+      - name: Copy Docker-Compose to EC2
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_IP_ADDRESS }}
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: "docker-compose.yml"
+          target: "/home/ubuntu/"
+          overwrite: true
+          
+
+      # File Verification
+      - name: Verify Deployment Files
         uses: appleboy/ssh-action@v0.1.10
         with:
           host: ${{ secrets.EC2_IP_ADDRESS }}
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            set -e
-            echo "=== Deploying Application ==="
+            echo "=== Deployment Files ==="
+            ls -la /home/ubuntu/
+            echo "=== Compose File Contents ==="
+            cat /home/ubuntu/docker-compose.yml || echo "ERROR: File missing!"
+
+
+      # Deployment
+      - name: Deploy Containers
+        uses: appleboy/ssh-action@v0.1.10
+        with:
+          host: ${{ secrets.EC2_IP_ADDRESS }}
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            set -ex
+            echo "=== Starting Deployment ==="
             cd /home/ubuntu
             
             # Stop and clean up old containers
             docker-compose down || true
-            
-            # Pull latest images
+            docker system prune -af  # Cleanup unused images
             docker pull chykmanish/ecommerce-app-backend:latest
             docker pull chykmanish/ecommerce-app-frontend:latest
-            
-            # Start new containers
-            docker-compose up -d
-            
-            # Verify deployment
+            docker-compose up -d --force-recreate
             echo "=== Running Containers ==="
-            docker ps
-            echo "=== Deployment Complete ==="
+            docker ps -a
+            echo "=== Network Status ==="
+            docker network ls
 
-      # Notification (Improved)
-      - name: Send WhatsApp Notification
-        if: success()  # Only send on successful deployment
+
+
+      # WhatsApp Notification
+      - name: Send WhatsApp Alert
+        if: success()
         run: |
           EC2_IP=${{ secrets.EC2_IP_ADDRESS }}
           PHONE=${{ secrets.WHATSAPP_PHONE }}
           MESSAGE="✅ Deployment Successful! Access your app at: http://$EC2_IP"
           
           curl -X POST \
-            "https://api.callmebot.com/whatsapp.php?phone=$PHONE&text=$(echo $MESSAGE | sed 's/ /%20/g')" \
+            "https://api.callmebot.com/whatsapp.php?phone=${{ secrets.WHATSAPP_PHONE }}&text=✅%20Deployment%20Success!%20Access%20your%20app%20at%20http://${{ secrets.EC2_IP_ADDRESS }}" \
             -H "Cache-Control: no-cache"
