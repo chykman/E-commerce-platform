@@ -1,0 +1,5 @@
+/deployment/
+/terraform/
+node_modules/
+terraform/
+deployment/
