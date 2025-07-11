@@ -1,10 +1,32 @@
-q2version: "3.8"
+version: '3.8'
+
 services:
-  app:
-    build: .
+  backend:
+    image: chykmanish/ecommerce-app-backend:latest
+    container_name: ecommerce-backend
     ports:
-      - "3000:3000"
-    volumes:
-      - .:/app
+      - "5000:5000"  # Map host port 5000 to container port 5000
     environment:
       - NODE_ENV=production
+      - PORT=5000
+      # Add other backend environment variables here (e.g., DB_URL)
+    restart: unless-stopped  # Auto-restart if crashes
+    networks:
+      - ecommerce-net
+
+  frontend:
+    image: chykmanish/ecommerce-app-frontend:latest
+    container_name: ecommerce-frontend
+    ports:
+      - "80:3000"  # Map host port 80 to container port 3000 (standard web port)
+    environment:
+      - REACT_APP_API_URL=http://backend:5000  # Internal Docker DNS
+    depends_on:
+      - backend  # Wait for backend to start
+    restart: unless-stopped
+    networks:
+      - ecommerce-net
+
+networks:
+  ecommerce-net:
+    driver: bridge  # Creates isolated network for containers
