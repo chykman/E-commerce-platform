@@ -63,21 +63,22 @@ jobs:
 
 
 
-  # deploy-to-ec2:
-  #   needs: build-and-test
-  #   runs-on: ubuntu-latest
-  #   # steps:
-    #   # SSH Setup
-    #   - name: Setup SSH Key
-    #     run: |
-    #       mkdir -p ~/.ssh
-    #       echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/ec2_key
-    #       chmod 600 ~/.ssh/ec2_key
-    #       ssh-keyscan ${{ secrets.EC2_IP_ADDRESS }} >> ~/.ssh/known_hosts
+  deploy-to-ec2:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup SSH Key
+        run: |
+          echo "Setting up SSH key for EC2 deployment"
+          sudo mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/ec2_key
+          sudo chmod 600 ~/.ssh/ec2_key
+          ssh-keyscan ${{ secrets.EC2_IP_ADDRESS }} >> ~/.ssh/known_hosts
 
           
 
       # Docker Installation
+      
       - name: Install Docker on EC2
         uses: appleboy/ssh-action@v0.1.10
         env:
@@ -155,14 +156,14 @@ jobs:
 
 
 
-      # WhatsApp Notification
-      - name: Send WhatsApp Alert
-        if: success()
-        run: |
-          EC2_IP=${{ secrets.EC2_IP_ADDRESS }}
-          PHONE=${{ secrets.WHATSAPP_PHONE }}
-          MESSAGE="✅ Deployment Successful! Access your app at: http://$EC2_IP"
+      # # WhatsApp Notification
+      # - name: Send WhatsApp Alert
+      #   if: success()
+      #   run: |
+      #     EC2_IP=${{ secrets.EC2_IP_ADDRESS }}
+      #     PHONE=${{ secrets.WHATSAPP_PHONE }}
+      #     MESSAGE="✅ Deployment Successful! Access your app at: http://$EC2_IP"
           
-          curl -X POST \
-            "https://api.callmebot.com/whatsapp.php?phone=${{ secrets.WHATSAPP_PHONE }}&text=✅%20Deployment%20Success!%20Access%20your%20app%20at%20http://${{ secrets.EC2_IP_ADDRESS }}" \
-            -H "Cache-Control: no-cache"
+      #     curl -X POST \
+      #       "https://api.callmebot.com/whatsapp.php?phone=${{ secrets.WHATSAPP_PHONE }}&text=✅%20Deployment%20Success!%20Access%20your%20app%20at%20http://${{ secrets.EC2_IP_ADDRESS }}" \
+      #       -H "Cache-Control: no-cache"
