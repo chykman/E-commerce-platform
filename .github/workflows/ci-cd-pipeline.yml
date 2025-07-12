@@ -63,17 +63,17 @@ jobs:
 
 
 
-  deploy-to-ec2:
-    needs: build-and-test
-    runs-on: ubuntu-latest
-    steps:
-      # SSH Setup
-      - name: Setup SSH Key
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/ec2_key
-          chmod 600 ~/.ssh/ec2_key
-          ssh-keyscan ${{ secrets.EC2_IP_ADDRESS }} >> ~/.ssh/known_hosts
+  # deploy-to-ec2:
+  #   needs: build-and-test
+  #   runs-on: ubuntu-latest
+  #   # steps:
+    #   # SSH Setup
+    #   - name: Setup SSH Key
+    #     run: |
+    #       mkdir -p ~/.ssh
+    #       echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/ec2_key
+    #       chmod 600 ~/.ssh/ec2_key
+    #       ssh-keyscan ${{ secrets.EC2_IP_ADDRESS }} >> ~/.ssh/known_hosts
 
           
 
