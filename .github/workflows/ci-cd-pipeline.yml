@@ -104,33 +104,71 @@ jobs:
             docker --version
             docker-compose --version
 
-      # File Transfer (Critical Fix)
-      - name: Copy Docker-Compose to EC2
-        uses: appleboy/scp-action@v0.1.7
+     
+
+
+      - name: Create and deploy compose file
+        uses: appleboy/ssh-action@v0.1.10
         with:
-          host: ${{ secrets.EC2_IP_ADDRESS }}
-          username: ubuntu
-          key: ${{ secrets.EC2_SSH_KEY }}
-          source: "docker-compose.yml"
-          target: "/home/ubuntu/"
-          overwrite: true
+         host: ${{ secrets.EC2_IP_ADDRESS }}
+         username: ubuntu
+         key: ${{ secrets.EC2_SSH_KEY }}
+         script: |
+          cat << 'EOF' > /home/ubuntu/docker-compose.yml
+          version: '3.8'
+          
+          services:
+            backend:
+              image: chykmanish/ecommerce-app-backend:latest
+              container_name: ecommerce-backend
+              ports:
+                - "5000:5000"
+              environment:
+                - NODE_ENV=production
+                - PORT=5000
+              restart: unless-stopped
+              networks:
+                - ecommerce-net
+          
+            frontend:
+              image: chykmanish/ecommerce-app-frontend:latest
+              container_name: ecommerce-frontend
+              ports:
+                - "80:3000"
+              environment:
+                - REACT_APP_API_URL=http://backend:5000
+              depends_on:
+                - backend
+              restart: unless-stopped
+              networks:
+                - ecommerce-net
+          
+          networks:
+            ecommerce-net:
+              driver: bridge
+          EOF
+          
+          echo "Docker Compose file created successfully at /home/ubuntu/docker-compose.yml"
+
+
+
           
 
-      # File Verification
+    # File Verification
       - name: Verify Deployment Files
         uses: appleboy/ssh-action@v0.1.10
         with:
-          host: ${{ secrets.EC2_IP_ADDRESS }}
-          username: ubuntu
-          key: ${{ secrets.EC2_SSH_KEY }}
-          script: |
-            echo "=== Deployment Files ==="
-            ls -la /home/ubuntu/
-            echo "=== Compose File Contents ==="
-            cat /home/ubuntu/docker-compose.yml || echo "ERROR: File missing!"
+         host: ${{ secrets.EC2_IP_ADDRESS }}
+         username: ubuntu
+         key: ${{ secrets.EC2_SSH_KEY }}
+         script: |
+          echo "=== Deployment Files ==="
+          ls -la /home/ubuntu/
+          echo "=== Compose File Contents ==="
+          cat /home/ubuntu/docker-compose.yml || echo "ERROR: File missing!"
 
 
-      # Deployment
+    # Deployment
       - name: Deploy Containers
         uses: appleboy/ssh-action@v0.1.10
         with:
@@ -155,14 +193,28 @@ jobs:
 
 
 
-      # # WhatsApp Notification
-      # - name: Send WhatsApp Alert
-      #   if: success()
-      #   run: |
-      #     EC2_IP=${{ secrets.EC2_IP_ADDRESS }}
-      #     PHONE=${{ secrets.WHATSAPP_PHONE }}
-      #     MESSAGE="✅ Deployment Successful! Access your app at: http://$EC2_IP"
+    # # WhatsApp Notification
+    # - name: Send WhatsApp Alert
+    #   if: success()
+    #   run: |
+    #     EC2_IP=${{ secrets.EC2_IP_ADDRESS }}
+    #     PHONE=${{ secrets.WHATSAPP_PHONE }}
+    #     MESSAGE="✅ Deployment Successful! Access your app at: http://$EC2_IP"
           
-      #     curl -X POST \
-      #       "https://api.callmebot.com/whatsapp.php?phone=${{ secrets.WHATSAPP_PHONE }}&text=✅%20Deployment%20Success!%20Access%20your%20app%20at%20http://${{ secrets.EC2_IP_ADDRESS }}" \
-      #       -H "Cache-Control: no-cache"
+    #     curl -X POST \
+    #       "https://api.callmebot.com/whatsapp.php?phone=${{ secrets.WHATSAPP_PHONE }}&text=✅%20Deployment%20Success!%20Access%20your%20app%20at%20http://${{ secrets.EC2_IP_ADDRESS }}" \
+    #       -H "Cache-Control: no-cache"
+
+
+
+
+     # # File Transfer (Critical Fix)
+      # - name: Copy Docker-Compose to EC2
+      #   uses: appleboy/scp-action@v0.1.7
+      #   with:
+      #     host: ${{ secrets.EC2_IP_ADDRESS }}
+      #     username: ubuntu
+      #     key: ${{ secrets.EC2_SSH_KEY }}
+      #     source: "docker-compose.yml"
+      #     target: "/home/ubuntu/"
+      #     overwrite: true
