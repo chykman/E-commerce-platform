@@ -1,3 +1,6 @@
+#   Back-end Dockerfile for E-commerce platform
+
+
 FROM node:18-alpine
 
 WORKDIR /app

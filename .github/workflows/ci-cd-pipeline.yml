@@ -16,7 +16,15 @@ jobs:
         with:
           node-version: '16'
 
-      # Backend
+       # === Backend Cache & Install ===
+      - name: Cache backend dependencies
+        uses: actions/cache@v3
+        with:
+          path: ./server/node_modules
+          key: backend-deps-${{ hashFiles('server/package-lock.json') }}
+          restore-keys: |
+            backend-deps-
+
       - name: Install backend dependencies
         working-directory: ./server
         run: npm install
@@ -25,7 +33,15 @@ jobs:
         working-directory: ./server
         run: npm test
 
-      # Frontend
+      # === Frontend Cache & Install ===
+      - name: Cache frontend dependencies
+        uses: actions/cache@v3
+        with:
+          path: ./public/node_modules
+          key: frontend-deps-${{ hashFiles('public/package-lock.json') }}
+          restore-keys: |
+            frontend-deps-
+
       - name: Install frontend dependencies
         working-directory: ./public
         run: npm install
@@ -34,7 +50,9 @@ jobs:
         working-directory: ./public
         run: npm run build
 
-      # Docker
+
+
+      # Dockerisation
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
 

@@ -1,3 +1,4 @@
+# Front-end Dockerfile for E-commerce platform
 # Use official Nginx image as base
 FROM nginx:alpine
 
