@@ -69,11 +69,10 @@ jobs:
     steps:
       - name: Setup SSH Key
         run: |
-          echo "Setting up SSH key for EC2 deployment"
-          sudo mkdir -p ~/.ssh
+          mkdir -p ~/.ssh
           echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/ec2_key
-          sudo chmod 600 ~/.ssh/ec2_key
-          ssh-keyscan ${{ secrets.EC2_IP_ADDRESS }} >> ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/ec2_key
+          
 
           
 
